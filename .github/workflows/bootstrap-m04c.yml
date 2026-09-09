@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   bootstrap:
-    if: github.event.issue.number == 1 && startsWith(github.event.comment.body, 'NSA_BOOTSTRAP_PART 19/20')
+    if: github.event.issue.number == 1 && startsWith(github.event.comment.body, 'NSA_BOOTSTRAP_V2_PART 39/40')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -37,14 +37,16 @@ jobs:
           parts = {}
           for comment in comments:
               body = comment.get('body') or ''
-              if not body.startswith('NSA_BOOTSTRAP_PART '):
+              if not body.startswith('NSA_BOOTSTRAP_V2_PART '):
                   continue
               header, payload = body.split('\n', 1)
               index_text, total_text = header.split()[1].split('/')
-              assert total_text == '20', header
-              parts[int(index_text)] = ''.join(payload.split())
-          assert sorted(parts) == list(range(20)), f'bootstrap parts incomplete: {sorted(parts)}'
-          encoded = ''.join(parts[i] for i in range(20))
+              assert total_text == '40', header
+              index = int(index_text)
+              assert index not in parts, f'duplicate bootstrap part {index}'
+              parts[index] = ''.join(payload.split())
+          assert sorted(parts) == list(range(40)), f'bootstrap parts incomplete: {sorted(parts)}'
+          encoded = ''.join(parts[i] for i in range(40))
           payload = base64.b64decode(encoded, validate=True)
           digest = hashlib.sha256(payload).hexdigest()
           expected = 'd4d26659daac6c2920c77b8a8a69449afc934e6f33242e6a85b63a22fdb0bd65'
