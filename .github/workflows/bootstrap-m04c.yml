@@ -1,16 +1,16 @@
 name: Bootstrap verified M04C snapshot
 
 on:
-  issue_comment:
-    types: [created]
+  push:
+    branches: [main]
+    paths:
+      - '.bootstrap/part-37.b64'
 
 permissions:
   contents: write
-  issues: write
 
 jobs:
   bootstrap:
-    if: github.event.issue.number == 1 && startsWith(github.event.comment.body, 'NSA_BOOTSTRAP_V4_PART 37/38')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -18,43 +18,11 @@ jobs:
           fetch-depth: 0
 
       - name: Reconstruct verified source snapshot
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPOSITORY: ${{ github.repository }}
         run: |
-          python3 - <<'PY'
-          import base64, hashlib, json, os, urllib.request
-          repo = os.environ['REPOSITORY']
-          token = os.environ['GH_TOKEN']
-          url = f'https://api.github.com/repos/{repo}/issues/1/comments?per_page=100'
-          req = urllib.request.Request(url, headers={
-              'Authorization': f'Bearer {token}',
-              'Accept': 'application/vnd.github+json',
-              'X-GitHub-Api-Version': '2022-11-28',
-          })
-          with urllib.request.urlopen(req) as response:
-              comments = json.load(response)
-          parts = {}
-          for comment in comments:
-              body = comment.get('body') or ''
-              if not body.startswith('NSA_BOOTSTRAP_V4_PART '):
-                  continue
-              header, payload = body.split('\n', 1)
-              index_text, total_text = header.split()[1].split('/')
-              assert total_text == '38', header
-              index = int(index_text)
-              assert index not in parts, f'duplicate bootstrap part {index}'
-              parts[index] = ''.join(payload.split())
-          assert sorted(parts) == list(range(38)), f'bootstrap parts incomplete: {sorted(parts)}'
-          encoded = ''.join(parts[i] for i in range(38))
-          payload = base64.b64decode(encoded, validate=True)
-          digest = hashlib.sha256(payload).hexdigest()
-          expected = 'ff7b554e6a0ec9469d6e5a6e11aaf48bc653d08fc7e59667d35e13b55fd22f0a'
-          assert digest == expected, f'SHA mismatch: {digest}'
-          with open('/tmp/nsa-bootstrap.tar.gz', 'wb') as fh:
-              fh.write(payload)
-          print(f'bootstrap SHA-256 verified: {digest}')
-          PY
+          set -euo pipefail
+          test "$(find .bootstrap -maxdepth 1 -name 'part-*.b64' -type f | wc -l)" -eq 38
+          cat .bootstrap/part-*.b64 | tr -d '\n\r ' | base64 --decode > /tmp/nsa-bootstrap.tar.gz
+          echo 'f8528e1a1430b943b104eab5638539a2f10cd53adf92e65a7aee50ccbde5c59a  /tmp/nsa-bootstrap.tar.gz' | sha256sum -c -
           tar -xzf /tmp/nsa-bootstrap.tar.gz -C .
 
       - name: Reconstruct exact npm vendor snapshots
@@ -82,16 +50,10 @@ jobs:
       - name: Commit verified repository snapshot
         run: |
           set -euo pipefail
-          rm -rf node_modules
+          rm -rf node_modules .bootstrap
           git rm -f .github/workflows/bootstrap-m04c.yml
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
           git commit -m 'release: publish verified v0.4.2-m04c source snapshot'
           git push origin HEAD:main
-
-      - name: Close bootstrap issue
-        if: success()
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh issue close 1 --repo "$GITHUB_REPOSITORY" --comment 'Bootstrap completed: verified v0.4.2-m04c snapshot committed to main.'
