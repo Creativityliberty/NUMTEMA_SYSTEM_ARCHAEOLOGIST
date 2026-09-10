@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - '.bootstrap/part-25.b64'
+      - '.bootstrap/part-14.b64'
 
 permissions:
   contents: write
@@ -20,9 +20,9 @@ jobs:
       - name: Reconstruct verified source snapshot
         run: |
           set -euo pipefail
-          test "$(find .bootstrap -maxdepth 1 -name 'part-*.b64' -type f | wc -l)" -eq 26
+          test "$(find .bootstrap -maxdepth 1 -name 'part-*.b64' -type f | wc -l)" -eq 15
           cat .bootstrap/part-*.b64 | tr -d '\n\r ' | base64 --decode > /tmp/nsa-bootstrap.tar.xz
-          echo '7d7294954ae8aabd142323d8e64c5f1e59428a1d8297f86c293686fd84d9dfa0  /tmp/nsa-bootstrap.tar.xz' | sha256sum -c -
+          echo 'b5acf4870d819d192eb3033b83c7e8fe44f4ac30a214dc7337847dc6951e7ea1  /tmp/nsa-bootstrap.tar.xz' | sha256sum -c -
           tar -xJf /tmp/nsa-bootstrap.tar.xz -C .
 
       - name: Reconstruct exact npm vendor snapshots
